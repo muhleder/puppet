@@ -1,0 +1,9 @@
+Check apache security settings
+Create a solr module
+
+
+Check if these notices are adding multiple items
+notice: //baseapps/Exec[/usr/sbin/locale-gen en_US en_US.UTF-8]/returns: executed successfully
+notice: //aws/Exec[aws-install-key]/returns: executed successfully
+notice: //aws/Exec[aws-update-sources]/returns: executed successfully
+notice: //aws/Exec[aws-setup-ec2-consistent-snapshot]/returns: executed successfully

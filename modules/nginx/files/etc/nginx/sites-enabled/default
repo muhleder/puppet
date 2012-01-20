@@ -1,0 +1,24 @@
+server {
+    listen       80;
+    server_name  localhost;
+
+    root /var/www/nginx-default;
+
+    #charset koi8-r;
+
+    # error_page  404              /404.html;
+
+    # redirect server error pages to the static page /50x.html
+    #
+    # error_page   500 502 503 504  /50x.html;
+
+	# pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+	#
+	location ~ \.php$ {
+		fastcgi_pass   127.0.0.1:9000;
+		fastcgi_param  SCRIPT_FILENAME  $document_root$fastcgi_script_name;
+		include fastcgi_params;
+		fastcgi_param PATH_INFO $fastcgi_script_name;
+	}
+	
+}
