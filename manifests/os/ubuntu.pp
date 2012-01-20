@@ -1,5 +1,5 @@
 class ubuntu {
-  $disableservices = ["hplip", "avahi-daemon", "rsync", "spamassassin"]
+  $disableservices = ["rsync"]
   service { $disableservices:
     enable => false,
     ensure => stopped,
