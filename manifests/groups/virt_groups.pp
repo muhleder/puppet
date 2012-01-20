@@ -5,4 +5,7 @@ class virt_groups {
   @group { "administration":
     ensure => present
   }
+  @group { "puppet":
+   ensure => present
+  }
 }

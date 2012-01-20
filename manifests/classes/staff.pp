@@ -3,6 +3,7 @@ class staff {
   realize(
     Group["staff"],
     Group["administration"],
+    Group["puppet"],
     User["ubuntu"]
   )
 
