@@ -1,5 +1,6 @@
 Check apache security settings
 Create a solr module
+Print error messages on dev server
 
 
 Check if these notices are adding multiple items
