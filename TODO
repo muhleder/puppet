@@ -1,6 +1,7 @@
 Check apache security settings
 Create a solr module
 Print error messages on dev server
+Fix up groups, sort out administration and staff, make sure puppet group gets added.
 
 
 Check if these notices are adding multiple items
