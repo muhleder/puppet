@@ -1,10 +1,10 @@
 #!/bin/sh
 
 description="server-backup-`date +%Y-%m-%d-%H-%M-%S`"
-volumeid=<VOLUME-ID>
-accesskeyid=<ACCESS-KEY>
-secretaccesskey=<SECRET-KEY>
-region=<REGION>
+volumeid=$AWS_VOLUME_ID
+accesskeyid=$AWS_ACCESS_KEY
+secretaccesskey=$AWS_SECRET_KEY
+region=$AWS_REGION
 
 
 ec2-consistent-snapshot  \
