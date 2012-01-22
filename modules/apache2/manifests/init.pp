@@ -3,7 +3,7 @@ class apache2 {
   $apache2_sites = "/etc/apache2/sites"
   $apache2_mods = "/etc/apache2/mods"
   
-  $packagelist = ["apache2", "php5", "php-apc", "php5-gd", 'php5-mysql', 'php5-cli']
+  $packagelist = ["apache2", "php5", "php-apc", "php5-gd", 'php5-mysql', 'php5-cli', 'php5-curl']
   
   $modsenable = ["alias", "auth_basic", "authz_host", "deflate", "dir", "expires",	"headers", "mime", "php5", "rewrite"]
 	$modsdisable = ["authz_default", "cgid", "cgi", "negotiation",	"reqtimeout", "setenvif", "status"]
