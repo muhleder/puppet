@@ -3,11 +3,11 @@
 
         DocumentRoot /var/www/docroot
         <Directory />
-                Options FollowSymLinks
-                AllowOverride None
+                Options FollowSymLinks -Indexes
+                AllowOverride All
         </Directory>
         <Directory /var/www/docroot>
-                Options FollowSymLinks MultiViews
+                Options FollowSymLinks MultiViews -Indexes
                 AllowOverride All
                 Order allow,deny
                 allow from all
@@ -22,3 +22,4 @@
         CustomLog /var/log/apache2/access.log combined
 
 </VirtualHost>
+
