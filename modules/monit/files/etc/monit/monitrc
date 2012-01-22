@@ -33,11 +33,6 @@ set logfile syslog facility log_daemon
 #
 set mailserver $SMTP_MAILSERVER port $SMTP_MAILSERVER_PORT USERNAME $SMTP_MAILSERVER_USER PASSWORD $SMTP_MAILSERVER_PASS using tlsv1
 
-SMTP_MAILSERVER="smtp.gmail.com"
-SMTP_MAILSERVER_PORT=587
-SMTP_MAILSERVER_USER="no-reply@analogweb.co.uk"
-SMTP_MAILSERVER_PASS="17dp8vu4agm6mb"
-
                # primary mailserver
 #                backup.bar.baz port 10025,  # backup mailserver on port 10025
 #                localhost                   # fallback relay
