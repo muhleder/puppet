@@ -1,7 +1,7 @@
 <VirtualHost *:8080>
         ServerAdmin webmaster@localhost
 
-        DocumentRoot /var/www/default
+        DocumentRoot /var/www/docroot
         <Directory />
                 Options FollowSymLinks
                 AllowOverride None

@@ -36,7 +36,7 @@ class apache2 {
     ensure => directory,
   }
 
-  file { "/var/www/default":
+  file { "/var/www/docroot":
     owner => "$user",
     group => $group,
     mode => 774,
