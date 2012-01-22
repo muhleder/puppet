@@ -6,9 +6,9 @@
                 Options FollowSymLinks
                 AllowOverride None
         </Directory>
-        <Directory /var/www/default>
+        <Directory /var/www/docroot>
                 Options FollowSymLinks MultiViews
-                AllowOverride None
+                AllowOverride All
                 Order allow,deny
                 allow from all
         </Directory>
