@@ -5,6 +5,5 @@ node default {
   include apache2
   include varnishdev
   include mysql
-  include aws
   include drupalapps
 }
