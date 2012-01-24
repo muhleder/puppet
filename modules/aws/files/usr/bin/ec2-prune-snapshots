@@ -1,0 +1,466 @@
+#!/usr/bin/perl
+#
+# (C) 2011 cyberx86 [ThatsGeeky.com]
+# Some sections (C) 2008-2011 Eric Hammond
+#
+
+#Todo:
+#Ensure consistency across timezones (Amazon uses UTC)
+#Possible problems: if DAYOFMONTH exceeds number of days in month (e.g. if DAYOFMONTH=31 in Feb)
+#Edge case: multiple snapshots on the same day may be kept for future purposes, instead of being narrowed to the single necessary one.
+
+use strict;
+use warnings;
+(our $Prog) = ($0 =~ m%([^/]+)$%);
+use Getopt::Long;
+use DateTime;
+use DateTime::Format::DateParse;
+use Pod::Usage;
+use File::Slurp;
+use Net::Amazon::EC2 0.11;
+
+#---- OPTIONS ----
+
+my $Help                       = 0;
+my $Debug                      = 0;
+my $Quiet                      = 0;
+my $Noaction                   = 0;
+
+my $aws_access_key_id          = $ENV{AWS_ACCESS_KEY_ID};
+my $aws_secret_access_key      = $ENV{AWS_SECRET_ACCESS_KEY};
+my $aws_access_key_id_file     = $ENV{AWS_ACCESS_KEY_ID};
+my $aws_secret_access_key_file = $ENV{AWS_SECRET_ACCESS_KEY};
+my $aws_credentials_file       = $ENV{AWS_CREDENTIALS};
+my $region                     = undef;
+my $ec2_endpoint               = undef;
+
+my $hours						= 0;
+my $days						= 0;
+my $weeks						= 0;
+my $months						= 0;
+# Always keep the dayofweek and dayofmonth to be consistent.
+my $hourofday					= 0; #Midnight
+my $dayofweek					= 7; #Sunday
+my $dayofmonth					= 1;
+my $favour_recent				= 0; #0=keep older; 1=keep newer
+
+Getopt::Long::config('no_ignore_case');
+GetOptions(
+  'help|?'                       => \$Help,
+  'debug'                        => \$Debug,
+  'quiet'                        => \$Quiet,
+  'noaction'                     => \$Noaction,
+
+  'aws-access-key-id=s'          => \$aws_access_key_id,
+  'aws-secret-access-key=s'      => \$aws_secret_access_key,
+  'aws-access-key-id-file=s'     => \$aws_access_key_id_file,
+  'aws-secret-access-key-file=s' => \$aws_secret_access_key_file,
+  'aws-credentials-file=s'       => \$aws_credentials_file,
+  'region=s'                     => \$region,
+  'ec2-endpoint=s'               => \$ec2_endpoint,
+  'hours=i'              		 => \$hours,
+  'days=i'              		 => \$days,
+  'weeks=i'             		 => \$weeks,
+  'months=i'            		 => \$months,
+  'hourofday=i'            		 => \$hourofday,
+  'dayofweek=i'            		 => \$dayofweek,
+  'dayofmonth=i'            	 => \$dayofmonth,
+  'favour-recent=i'            	 => \$favour_recent,
+) or pod2usage(2);
+
+pod2usage(1) if $Help;
+
+my @volume_ids = @ARGV;
+pod2usage(2) unless scalar @volume_ids;
+pod2usage(2) unless (($hours >=0 && $days >= 0 && $weeks >=0 && $months >=0) && ($hours > 0 || $days > 0 || $weeks > 0 || $months > 0));
+
+
+$ec2_endpoint ||= "https://ec2.$region.amazonaws.com" if $region;
+
+
+#---- MAIN ----
+
+($aws_access_key_id,      $aws_secret_access_key) = determine_access_keys(
+ $aws_access_key_id,      $aws_secret_access_key,
+ $aws_access_key_id_file, $aws_secret_access_key_file,
+ $aws_credentials_file,
+);
+die "$Prog: ERROR: Can't find AWS access key or secret access key"
+  unless $aws_access_key_id and $aws_secret_access_key;
+$Debug and warn "$Prog: Using AWS access key: $aws_access_key_id\n";
+
+prune_snapshots(\@volume_ids, $ec2_endpoint, $hours, $days, $weeks, $months, $hourofday, $dayofweek, $dayofmonth, $favour_recent);
+
+exit 0;
+
+END {
+  $Debug and warn "$Prog: ", scalar localtime, ": done\n";
+}
+
+#---- METHODS ----
+
+sub prune_snapshots {
+	my ($volume_ids, $ec2_endpoint, $hours, $days, $weeks, $months, $hourofday, $dayofweek, $dayofmonth, $favour_recent) = @_;
+	$Debug and warn "$Prog: ", scalar localtime, ": begin snapshot pruning\n";
+    $Debug and warn "$Prog: Endpoint: $ec2_endpoint\n" if $ec2_endpoint;
+	$Debug and warn "$Prog: Vols: @$volume_ids\n";
+	my $now = DateTime->now( time_zone => 'UTC' );
+
+	  # EC2 API object
+	my $ec2 = Net::Amazon::EC2->new(
+		AWSAccessKeyId  => $aws_access_key_id,
+		SecretAccessKey => $aws_secret_access_key,
+		($ec2_endpoint ? (base_url => $ec2_endpoint) : ()),
+		# ($Debug ? (debug => 1) : ()),
+	);
+
+	my $current_snapshots = $ec2->describe_snapshots(Owner => 'self');
+
+	my $min_hours = $now->clone->subtract(hours => $hours);
+	my $min_days = $min_hours->clone->subtract(days => $days);
+	my $min_weeks = $min_days->clone->subtract(weeks=>$weeks);
+	my $min_months = $min_weeks->clone->subtract(months=>$months);
+	$Debug and warn "$Prog: Earliest for 'hours': ", $min_hours->datetime(), "\n";
+	$Debug and warn "$Prog: Earliest for 'days': ", $min_days->datetime(), "\n";
+	$Debug and warn "$Prog: Earliest for 'weeks': ", $min_weeks->datetime(), "\n";
+	$Debug and warn "$Prog: Earliest for 'months': ", $min_months->datetime(), "\n";
+
+	my %kept_snaps;
+	my %del_snaps;
+
+	foreach my $snapshot (@$current_snapshots) {
+		my $snapnum;
+		my $snapshot_date = DateTime::Format::DateParse->parse_datetime($snapshot->start_time);
+		if ($snapshot->status ne 'completed'){
+		#snapshots that are still in progress
+			$Debug and warn $snapshot->snapshot_id , " not completed", "\n";
+		}elsif(!grep $_ eq $snapshot->volume_id, @$volume_ids){
+		#snapshots for volumes not specified
+			$Debug and warn "$Prog: Snapshot [", $snapshot->snapshot_id, "] skipped; volume [",$snapshot->volume_id,"] not in list", "\n";
+		}elsif (DateTime->compare($snapshot_date, $min_hours)>=0){
+		#snapshots in hourly range
+			#$snapnum = $now->clone->subtract_datetime($snapshot_date)->hours();
+			$snapnum = $now->clone->delta_ms($snapshot_date)->in_units('hours');
+			process_snaps ('hour', $snapnum, \%kept_snaps, \%del_snaps, $snapshot, $snapshot_date, $hourofday, $dayofweek, $dayofmonth, $favour_recent);
+		}elsif (DateTime->compare($snapshot_date, $min_days)>=0){
+		#snapshots in daily range
+			$snapnum = $min_hours->clone->delta_days($snapshot_date)->delta_days();
+			process_snaps ('day', $snapnum, \%kept_snaps, \%del_snaps, $snapshot, $snapshot_date, $hourofday, $dayofweek, $dayofmonth, $favour_recent);
+		}elsif (DateTime->compare($snapshot_date, $min_weeks)>=0){
+		#snapshots in weekly range
+			$snapnum = $min_days->clone->delta_days($snapshot_date)->weeks();
+			process_snaps ('week', $snapnum, \%kept_snaps, \%del_snaps, $snapshot, $snapshot_date, $hourofday, $dayofweek, $dayofmonth, $favour_recent);
+		}elsif (DateTime->compare($snapshot_date, $min_months)>=0){
+		#snapshots in monthly range
+			$snapnum = abs($min_weeks->clone->subtract_datetime($snapshot_date)->in_units('months'));
+			process_snaps ('month', $snapnum, \%kept_snaps, \%del_snaps, $snapshot, $snapshot_date, $hourofday, $dayofweek, $dayofmonth, $favour_recent);
+		}else{
+			#anything that makes it here is to be deleted because it is too old
+			push @{ $del_snaps{$snapshot->volume_id} }, $snapshot->snapshot_id;
+			$Debug and warn  "$Prog: ". $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be DELETED (3)\n";
+
+		}
+
+	}
+	#Debug: Display kept_snaps and del_snaps (snaps kept for future not shown);
+	if ($Debug){
+		my ($vol_id,$period, $num, $snap_id);
+		foreach $vol_id (keys %kept_snaps) {
+			foreach $period (keys %{$kept_snaps{$vol_id}}){
+				foreach $num (sort keys %{$kept_snaps{$vol_id}{$period}}){
+					warn "$Prog: Snapshot [", $kept_snaps{$vol_id}{$period}{$num}{'snap_id'}, "] ", $kept_snaps{$vol_id}{$period}{$num}{'time'}->day_abbr() . " " . $kept_snaps{$vol_id}{$period}{$num}{'time'}->month_abbr() . " " . $kept_snaps{$vol_id}{$period}{$num}{'time'}->day_of_month() . ", " . $kept_snaps{$vol_id}{$period}{$num}{'time'}->year()  . " " . $kept_snaps{$vol_id}{$period}{$num}{'time'}->hms(':'), " to be KEPT ($period)\n";
+				}
+			}
+		}
+
+		foreach $vol_id (keys %del_snaps) {
+			foreach $snap_id (@{$del_snaps{$vol_id}}){
+				warn "$Prog: Snapshot [", $snap_id, "] to be DELETED\n";
+			}
+		}
+	}
+
+	#Do the actual deletion:
+	my ($volume_id, $snaps_to_del, $snap_to_del);
+	while (($volume_id, $snaps_to_del) = each(%del_snaps)){
+		$Debug and warn "$Prog: Deleting snaps for ". $volume_id.":\n";
+		foreach $snap_to_del (@$snaps_to_del){
+			if ( $Noaction ) {
+				warn "$Prog: Snapshot [", $snap_to_del, "] deletion SKIPPED [--noaction]\n";
+			}else{
+				#could pass snapshots as array ref...
+				if ($ec2->delete_snapshot(SnapshotId => $snap_to_del)){
+				$Quiet or print "Snapshot [", $snap_to_del, "] deleted\n";
+				}else{
+					warn "$Prog: Snapshot [", $snap_to_del, "] deletion FAILED\n";
+				}
+			}
+		}
+	}
+
+
+
+
+
+
+}
+
+sub process_snaps {
+	my ($timeperiod, $snapnum, $kept_snaps, $del_snaps,  $snapshot, $snapshot_date, $hourofday, $dayofweek, $dayofmonth, $favour_recent) = @_;
+
+	if (!defined $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}){
+	#no snap for this time point
+		$kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'}=$snapshot->snapshot_id;
+		$kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}=$snapshot_date;
+		$Debug and warn  "$Prog: ". $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be KEPT [".$timeperiod." #". $snapnum ."] (1)\n";
+	}elsif (
+	($timeperiod eq 'hour') ||
+	($timeperiod eq 'day' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->hour() != $hourofday || $snapshot_date->hour() == $hourofday)) ||
+	($timeperiod eq 'week' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_week() != $dayofweek || $snapshot_date->day_of_week() == $dayofweek)) ||
+	($timeperiod eq 'month' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_month() != $dayofmonth || $snapshot_date->day_of_month() == $dayofmonth))
+	){
+	#already a snap for this time point AND (currently kept snap is not preferred date OR new one is preferred date)
+		if (
+		($timeperiod ne 'hour') && (
+		($timeperiod eq 'day' && ($snapshot_date->hour() == $hourofday && $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->hour() !=$hourofday)) ||
+		($timeperiod eq 'week' && ($snapshot_date->day_of_week() == $dayofweek && $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_week() !=$dayofweek)) ||
+		($timeperiod eq 'month' && ($snapshot_date->day_of_month() == $dayofmonth && $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_month() !=$dayofmonth))
+		)){
+		#currently kept snap is not preferred date AND new one is preferred date, so keep new and delete old
+			if (
+			#($timeperiod eq 'hour' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->hour != $hourofday)) ||
+			($timeperiod eq 'day' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_week != $dayofweek && $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_month != $dayofmonth)) ||
+			($timeperiod eq 'week' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_month != $dayofmonth)) ||
+			($timeperiod eq 'month')
+			){
+				push @{ $del_snaps->{$snapshot->volume_id} }, $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'};
+				$Debug and warn  "$Prog: ". $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'} . " [" . $snapshot->volume_id . "; " . $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'} ."] to be DELETED (switch) [".$timeperiod." #". $snapnum ."] (1)\n";
+			}else{
+			#don't delete the currently kept snap if it will be needed for a future time point
+				$Debug and warn  "$Prog: ". $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'} . " [" . $snapshot->volume_id . "; " . $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'} ."] to be KEPT (for future) [".$timeperiod." #". $snapnum ."] (1)\n";
+			}
+			$kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'}=$snapshot->snapshot_id;
+			$kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}=$snapshot_date;
+			$Debug and warn  "$Prog: ". $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be KEPT [".$timeperiod." #". $snapnum ."] (2)\n";
+		}else{
+		#new and currently kept both correct OR both incorrect, check if we should switch them
+			if(DateTime->compare( $snapshot_date, $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'} )==($favour_recent*2-1)){
+			#new snapshot is favoured
+				if (
+				($timeperiod eq 'hour' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->hour != $hourofday)) ||
+				($timeperiod eq 'day' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_week != $dayofweek && $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_month != $dayofmonth)) ||
+				($timeperiod eq 'week' && ($kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}->day_of_month != $dayofmonth)) ||
+				($timeperiod eq 'month')
+				){
+				#delete currently kept snap
+					push @{ $del_snaps->{$snapshot->volume_id} }, $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'};
+					$Debug and warn  "$Prog: ". $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'} . " [" . $snapshot->volume_id . "; " . $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'} ."] to be DELETED (switch) [".$timeperiod." #". $snapnum ."] (2)\n";
+
+				}else{
+				#keep the currently kept snap for a future time point
+					$Debug and warn  "$Prog: ". $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'} . " [" . $snapshot->volume_id . "; " . $kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'} ."] to be KEPT (for future) [".$timeperiod." #". $snapnum ."] (2)\n";
+				}
+				$kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'snap_id'}=$snapshot->snapshot_id;
+				$kept_snaps->{$snapshot->volume_id}{$timeperiod}{$snapnum}{'time'}=$snapshot_date;
+				$Debug and warn  $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be KEPT [".$timeperiod." #". $snapnum ."] (3)\n";
+
+			}else{
+				#currently kept snapshot favoured - delete new snapshot
+				if (
+				($timeperiod eq 'hour' && ($snapshot_date->hour != $hourofday)) ||
+				($timeperiod eq 'day' && ($snapshot_date->day_of_week != $dayofweek && $snapshot_date->day_of_month != $dayofmonth)) ||
+				($timeperiod eq 'week' && ($snapshot_date->day_of_month != $dayofmonth)) ||
+				($timeperiod eq 'month')
+				){
+				#delete new snap
+					push @{ $del_snaps->{$snapshot->volume_id} }, $snapshot->snapshot_id;
+					$Debug and warn  "$Prog: ". $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be DELETED [".$timeperiod." #". $snapnum ."] (1)\n";
+				}else{
+				#keep the new snap for a future time point
+					$Debug and warn  "$Prog: ". $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be KEPT (for future) [".$timeperiod." #". $snapnum ."] (3)\n";
+				}
+			}
+		}
+	}else{
+	#already a snap for this time point AND currently kept snap is preferred date AND new one is NOT preferred date
+		if (
+		($timeperiod eq 'hour' && ($snapshot_date->hour != $hourofday)) ||
+		($timeperiod eq 'day' && ($snapshot_date->day_of_week != $dayofweek && $snapshot_date->day_of_month != $dayofmonth)) ||
+		($timeperiod eq 'week' && ($snapshot_date->day_of_month != $dayofmonth)) ||
+		($timeperiod eq 'month')
+		){
+		#delete new kept snap
+			push @{ $del_snaps->{$snapshot->volume_id} }, $snapshot->snapshot_id;
+			$Debug and warn  "$Prog: ". $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be DELETED [".$timeperiod." #". $snapnum ."] (2)\n";
+		}else{
+		#keep the new snap for a future time point
+			$Debug and warn  "$Prog: ". $snapshot->snapshot_id . " [" . $snapshot->volume_id . "; " . $snapshot_date ."] to be KEPT (for future) [".$timeperiod." #". $snapnum ."] (4)\n";
+		}
+	}
+}
+
+
+# Figure out which AWS access keys to use
+sub determine_access_keys {
+  my ($aws_access_key_id,      $aws_secret_access_key,
+      $aws_access_key_id_file, $aws_secret_access_key_file,
+      $aws_credentials_file,
+     ) = @_;
+
+  # 1. --aws-access-key-id and --aws-secret-access-key
+  return ($aws_access_key_id, $aws_secret_access_key)
+    if $aws_access_key_id;
+
+  # 2. --aws-access-key-id-file and --aws-secret-access-key-file
+  if ( $aws_access_key_id_file ) {
+    die "$Prog: Please provide both --aws-access-key-id-file and --aws-secret-access-key-file"
+      unless $aws_secret_access_key_file;
+    $aws_access_key_id    = File::Slurp::read_file($aws_access_key_id_file);
+    $aws_secret_access_key= File::Slurp::read_file($aws_secret_access_key_file);
+    chomp($aws_access_key_id);
+    chomp($aws_secret_access_key);
+    return ($aws_access_key_id, $aws_secret_access_key);
+  }
+
+  # 3. $AWS_CREDENTIALS or $HOME/.awssecret
+  return read_awssecret($aws_credentials_file);
+}
+
+
+# Look for the access keys in $AWS_CREDENTIALS or ~/.awssecret
+sub read_awssecret {
+  my ($aws_credentials_file) = @_;
+      $aws_credentials_file  ||= "$ENV{HOME}/.awssecret";
+  my ($aws_access_key_id, $aws_secret_access_key);
+  eval {
+    ($aws_access_key_id, $aws_secret_access_key) =
+      File::Slurp::read_file($aws_credentials_file);
+    chomp $aws_access_key_id;
+    chomp $aws_secret_access_key;
+  };
+  return ($aws_access_key_id, $aws_secret_access_key);
+}
+
+
+
+=head1 NAME
+
+ ec2-prune-snapshots - Delete old snapshots in grandfather-father-son style
+
+=head1 SYNOPSIS
+
+ ec2-prune-snapshots [opts] VOLUMEID1 [VOLUMEID2]...
+
+ At least one of hours, days, weeks, or months is required.
+
+=head1 OPTIONS
+
+ -h --help      Print help and exit.
+ -d --debug     Debug mode.
+ -q --quiet     Quiet mode.
+ -n --noaction  Don't do it. Just say what you would have done.
+
+ --aws-access-key-id KEY
+ --aws-secret-access-key SECRET
+
+   Amazon AWS access key and secret access key.  Defaults to
+   environment variables or .awssecret file contents described below.
+
+ --aws-access-key-id-file KEYFILE
+ --aws-secret-access-key-file SECRETFILE
+
+   Files containing Amazon AWS access key and secret access key.
+   Defaults to environment variables or .awssecret file contents
+   described below.
+
+ --aws-credentials-file CREDENTIALSFILE
+
+   File containing both the Amazon AWS access key and secret access
+   key on seprate lines and in that order.  Defaults to contents of
+   $AWS_CREDENTIALS environment variable or the value $HOME/.awssecret
+
+--region REGION
+
+   Specify a different region like "eu-west-1".  Defaults to
+   "us-east-1".
+
+--hours HOURSTOKEEP
+
+   The number of hours of snapshots to keep, from the current date (integer)
+
+--days DAYSTOKEEP
+
+   The number of days of snapshots to keep, from the current date (integer).
+   Days start after the period specified by HOURSTOKEEP. All snapshots taken on
+   HOUROFDAY, until the end of the specified time will be kept. If there is
+   no snapshot for HOUROFDAY (or more than one snapshot for HOUROFDAY),
+   FAVOURRECENT will be used to determine which to keep.
+
+--weeks WEEKSTOKEEP
+
+   The number of weeks of snapshots to keep, from the current date (integer).
+   Weeks start after the period specified by DAYSTOKEEP. All snapshots taken on
+   DAYOFWEEK, until the end of the specified time will be kept. If there is
+   no snapshot for DAYOFWEEK (or more than one snapshot for DAYOFWEEK),
+   FAVOURRECENT will be used to determine which to keep.
+
+--months MONTHSTOKEEP
+
+   The number of months of snapshots to keep, from the current date (integer).
+   Months start after the period specified by WEEKSTOKEEP. All snapshots taken on
+   DAYOFMONTH, until the end of the specified time will be kept. If there is
+   no snapshot for DAYOFMONTH (or more than one snapshot for DAYOFMONTH),
+   FAVOURRECENT will be used to determine which to keep.
+
+--hourofday HOUROFDAY
+
+   The (numeric) hour (0-23) to keep for the daily snapshot.
+   If available this value will take precedence over FAVOURRECENT.
+
+--dayofweek DAYOFWEEK
+
+   The (numeric) day (1-7, with 1=Mon and 7=Sun) to keep for the weekly snapshot.
+   If available this value will take precedence over FAVOURRECENT. Snapshots from
+   this day will not be deleted as they will be needed in the future for a weekly
+   snapshot.
+
+--dayofmonth DAYOFMONTH
+
+   The (numeric) day (1-31) to keep for the monthly snapshot. If the DAYOFMONTH
+   doesn't exist, FAVOURRECENT will be used to determine which snapshot to keep.
+   If available this value will take precedence over FAVOURRECENT. Snapshots from
+   this day will not be deleted as they will be needed in the future for a monthly
+   snapshot.
+
+--favor-recent FAVOURRECENT
+
+   If this is set to 1, in the event that either no HOUROFDAY/DAYOFWEEK/DAYOFMONTH
+   is set,   or a snapshot for the time period is not available, or more than one
+   snapshot falls within the time period, the most recent snapshot from the time
+   period will be used. If this is set to 0, the oldest snapshot will be used in
+   the above scenario.
+
+=head1 ARGUMENTS
+
+ VOLUMEID       EBS volume id(s) for which to rotate snapshots.
+
+ Additionally, at least one of days, weeks, or months is required.
+
+=head1 AUTHOR
+
+EBS Pruning functions:
+cyberx86 [ThatsGeeky.com]
+
+AWS Key processing and other sections:
+Eric Hammond <ehammond@thinksome.com>
+
+
+=head1 LICENSE
+
+Copyright (C) cyberx86 [ThatsGeeky.com]
+Some sections copyright (C) 2009-2011 Eric Hammond <ehammond@thinksome.com>
+
+Licensed under the Apache License, Version 2.0, see
+http://www.apache.org/licenses/LICENSE-2.0
+
+=cut

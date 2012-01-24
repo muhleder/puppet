@@ -1,0 +1,25 @@
+<VirtualHost *:8080>
+        ServerAdmin webmaster@localhost
+
+        DocumentRoot /var/www/docroot
+        <Directory />
+                Options FollowSymLinks -Indexes
+                AllowOverride All
+        </Directory>
+        <Directory /var/www/docroot>
+                Options FollowSymLinks MultiViews -Indexes
+                AllowOverride All
+                Order allow,deny
+                allow from all
+        </Directory>
+
+        ErrorLog /var/log/apache2/error.log
+
+        # Possible values include: debug, info, notice, warn, error, crit,
+        # alert, emerg.
+        LogLevel warn
+
+        CustomLog /var/log/apache2/access.log combined
+
+</VirtualHost>
+
