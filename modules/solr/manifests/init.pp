@@ -4,20 +4,24 @@ class solr {
     ensure => present,
   }
 
-  exec {'create-drupal-solr':
+  file {'/usr/share/solr/conf/schema.xml':
     require => Package['solr-jetty'],
-    unless => '',
-    command => 'cp -R /var/solr/example /var/solr/drupal'
+    source => 'puppet:///modules/solr/usr/share/solr/conf/schema.xml',
   }
 
-  file {'/var/solr/apache-solr/drupal/schema.xml':
-    require => Exec['create-drupal-solr'],
-    source => puppet:///modules/solr/var/solr/apache-solr/drupal/schema.xml
+  file {'/usr/share/solr/conf/solrconfig.xml':
+    require => Package['solr-jetty'],
+    source => 'puppet:///modules/solr/usr/share/solr/conf/solrconfig.xml',
   }
 
-  file {'/var/solr/apache-solr/drupal/solrconfig.xml':
-    require => Exec['create-drupal-solr'],
-    source => puppet:///modules/solr/var/solr/apache-solr/drupal/solrconfig.xml
+  file {'/etc/default/jetty':
+    require => Package['solr-jetty'],
+    source => 'puppet:///modules/solr/etc/default/jetty',
+  }
+
+  service {'solr-jetty':
+    require => File['/etc/default/jetty'],
+    ensure => running,
   }
 
 }
