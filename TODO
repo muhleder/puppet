@@ -2,7 +2,14 @@ Check apache security settings
 Create a solr module
 Print error messages on dev server
 Fix up groups, sort out administration and staff, make sure puppet group gets added.
+Increase upload file size for php
 
+Add xdebug for dev servers, needs to be version 2.1.0 installed with pecl
+Edit your php.ini configuration and edit this settings
+display_errors on
+html_errors=on
+
+apc.shm_size
 
 Check if these notices are adding multiple items
 notice: //baseapps/Exec[/usr/sbin/locale-gen en_US en_US.UTF-8]/returns: executed successfully
