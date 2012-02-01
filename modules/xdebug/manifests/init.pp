@@ -1,4 +1,5 @@
 class xdebug {
+  #TODO tidy this up so only run once
 
   $packagelist = ['php5-dev', 'php-pear']
 
