@@ -4,7 +4,7 @@ class xdebug {
 
   package { $packagelist: ensure => installed }
 
-  exec {'pecl install xdebug-2.1.0':
+  exec {'/usr/bin/pecl install xdebug-2.1.0':
     require => Package[$packagelist]
   }
 
