@@ -19,7 +19,7 @@ class solr {
     source => 'puppet:///modules/solr/etc/default/jetty',
   }
 
-  service {'solr-jetty':
+  service {'jetty':
     require => File['/etc/default/jetty'],
     ensure => running,
   }
