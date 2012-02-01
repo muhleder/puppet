@@ -6,4 +6,6 @@ node default {
   include varnishdev
   include mysql
   include drupalapps
+  include phpdev
+  include xdebug
 }
