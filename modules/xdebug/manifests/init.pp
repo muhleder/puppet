@@ -9,4 +9,8 @@ class xdebug {
     require => Package[$packagelist]
   }
 
+  file {'/etc/php5/apache2/conf.d/xdebug_settings.ini':
+    source => 'puppet:///modules/xdebug/etc/php5/apache2/conf.d/xdebug_settings.ini',
+  }
+
 }
