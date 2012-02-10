@@ -7,5 +7,4 @@ node default {
   include mysql
   include drupalapps
   include phpdev
-  include xdebug
 }
