@@ -8,7 +8,7 @@ VERBOSE=yes
 
 # Run Jetty as this user ID (default: jetty)
 # Set this to an empty string to prevent Jetty from starting automatically
-#JETTY_USER=jetty
+JETTY_USER=jetty
 
 # Listen to connections from this network host (leave empty to accept all connections)
 #Uncomment to restrict access to localhost
@@ -27,7 +27,7 @@ JETTY_PORT=8983
 #JAVA_OPTIONS="-Xmx256m -Djava.awt.headless=true"
 
 # Home of Java installation.
-#JAVA_HOME=
+JAVA_HOME=/usr/lib/jvm/java-6-openjdk
 
 # The first existing directory is used for JAVA_HOME (if JAVA_HOME is not
 # defined in /etc/default/jetty). Should contain a list of space separated directories.
