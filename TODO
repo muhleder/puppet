@@ -1,10 +1,28 @@
 Check apache security settings
-Create a solr module
 Print error messages on dev server
 Fix up groups, sort out administration and staff, make sure puppet group gets added.
 Increase upload file size for php
+Add apt-get update, apt-get upgrade step
+
+Multi-core solr if required
+http://drupal.org/node/967628
+
+service solr not working yet, needs to be registered as a service
+/etc/init.d/solr does work
+
+Only install xdebug once
+
+Set up port forwarding so we can view the solr admin screen
+
+set up cron for dev servers?
+
+ PECL uploadprogress
 
 
+pear upgrade pear
+pecl install channel://pecl.php.net/xhprof-0.9.2
+
+pecl  xhprof
 
 apc.shm_size
 
