@@ -1,14 +1,7 @@
-Check apache security settings
-<<<<<<< HEAD
-Create a solr module
-Print error messages on dev server
-Fix up groups, sort out administration and staff, make sure puppet group gets added.
-
-=======
 Print error messages on dev server
 Fix up groups, sort out administration and staff, make sure puppet group gets added.
 Increase upload file size for php
-Add apt-get update, apt-get upgrade step
+Add apt-get upgrade step
 
 Multi-core solr if required
 http://drupal.org/node/967628
@@ -24,14 +17,7 @@ set up cron for dev servers?
 
  PECL uploadprogress
 
-
-pear upgrade pear
-pecl install channel://pecl.php.net/xhprof-0.9.2
-
-pecl  xhprof
-
 apc.shm_size
->>>>>>> 4f5594b2aa54b7342cec67fd1b19a8b8bb4bc97c
 
 Check if these notices are adding multiple items
 notice: //baseapps/Exec[/usr/sbin/locale-gen en_US en_US.UTF-8]/returns: executed successfully
