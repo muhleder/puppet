@@ -1,12 +1,9 @@
 #!/bin/bash
-<<<<<<< HEAD
-=======
+
 ####################################
 # Run this script to install requirements
 # and pull latest version of puppet code.
 ####################################
-
->>>>>>> 4f5594b2aa54b7342cec67fd1b19a8b8bb4bc97c
 
 ####################################
 # Make sure only root can run our script
