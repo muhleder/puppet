@@ -1,0 +1,23 @@
+Listen 8081
+<VirtualHost *:8081>
+        ServerAdmin webmaster@localhost
+
+        DocumentRoot /var/xhprof/xhprof_html
+        <Directory />
+                Options FollowSymLinks -Indexes
+                AllowOverride All
+        </Directory>
+        <Directory /var/xhprof/xhprof_html>
+                Options FollowSymLinks MultiViews -Indexes
+                AllowOverride All
+                Order allow,deny
+                allow from all
+        </Directory>
+
+        ErrorLog /var/log/apache2/xhprof_error.log
+
+        # Possible values include: debug, info, notice, warn, error, crit,
+        # alert, emerg.
+        LogLevel warn
+
+</VirtualHost>

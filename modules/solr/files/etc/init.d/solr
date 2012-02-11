@@ -1,0 +1,24 @@
+#!/bin/sh -e
+# Starts, stops, and restarts solr,
+# bypassing a minor bug with the distro jetty restart
+# https://bugs.launchpad.net/ubuntu/+source/solr/+bug/321889/comments/23
+
+case $1 in
+    start)
+        echo "Starting Solr"
+        service jetty start
+        ;;
+    stop)
+        echo "Stopping Solr"
+        service jetty stop
+        ;;
+    restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}" >&2
+        exit 1
+        ;;
+esac
