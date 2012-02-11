@@ -19,7 +19,7 @@ $volumeid
 ec2-prune-snapshots  \
 --aws-access-key-id=$accesskey \
 --aws-secret-access-key=$secretaccesskey \
---months 3 --weeks 4 --days 7 \
+--months 0 --weeks 1 --days 1 \
 --dayofmonth 1 --dayofweek 1 \
 --region=$region \
 $volumeid
