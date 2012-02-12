@@ -8,4 +8,5 @@ node default {
   include mysql
   include aws
   include drupalapps
+  include unattended-upgrades
 }
