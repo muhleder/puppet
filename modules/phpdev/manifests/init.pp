@@ -1,7 +1,7 @@
 
 class phpdev {
 
-  $packagelist = ['php5-dev', 'php-pear']
+  $packagelist = ['php5-dev', 'php-pear', 'graphviz']
 
   package { $packagelist: ensure => installed }
 
