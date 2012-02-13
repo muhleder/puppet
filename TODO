@@ -11,11 +11,7 @@ Only install xdebug once
 
 Set up port forwarding so we can view the solr admin screen
 
-
-
 Build xhprof from git
-
-set up cron for dev servers?
 
 aws server backup should auto add cron line
 12 01 * * * /home/ubuntu/serverbackup.sh
