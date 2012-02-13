@@ -27,10 +27,10 @@ class aws {
     unless => '/usr/bin/locate ec2-consistent-snapshot | grep ec2-consistent-snapshot',
   }
 
-  exec { 'aws-setup-cron':
+  #exec { 'aws-setup-cron':
       #command => '/bin/echo "12 01 * * * /home/ubuntu/serverbackup.sh" >> /etc/apt/sources.list',
-      unless => '/usr/bin/crontab -l | grep /home/ubuntu/serverbackup.sh',
-  }
+      #unless => '/usr/bin/crontab -l | grep /home/ubuntu/serverbackup.sh',
+  #}
 
   package { 'libdatetime-perl':
     ensure => 'installed',
