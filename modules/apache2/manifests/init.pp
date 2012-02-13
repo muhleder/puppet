@@ -1,6 +1,5 @@
 class apache2 {
-  
-  $apache2_sites = "/etc/apache2/sites"
+
   $apache2_mods = "/etc/apache2/mods"
   
   $packagelist = ["apache2", "php5", "php-apc", "php5-gd", 'php5-mysql', 'php5-cli', 'php5-curl']
@@ -22,7 +21,7 @@ class apache2 {
 
   $apache_conf_dir = "/etc/apache2"
   $php_conf_dir = "/etc/php5"
-  $group = "administration"
+  $group = "ubuntu"
   $webuser = "www-data"
   $user = "ubuntu"
 
@@ -88,13 +87,13 @@ class apache2 {
     case $ensure {
       'present' : {
         exec { "/usr/sbin/a2enmod $name":
-         unless => "/bin/readlink -e ${apache2_mods}-enabled/${name}.load",
+         unless => "/bin/readlink -e /etc/apache2/mods-enabled/${name}.load",
          notify => Exec["force-reload-apache2"],
         }
       }
       'absent': {
         exec { "/usr/sbin/a2dismod $name":
-         onlyif => "/bin/readlink -e ${apache2_mods}-enabled/${name}.load",
+         onlyif => "/bin/readlink -e /etc/apache2/mods-enabled/${name}.load",
          notify => Exec["force-reload-apache2"],
         }
       }
