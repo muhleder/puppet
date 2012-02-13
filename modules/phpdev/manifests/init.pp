@@ -6,7 +6,8 @@ class phpdev {
   package { $packagelist: ensure => installed }
 
   exec {'/usr/bin/pecl install xdebug-2.1.0':
-    require => Package[$packagelist]
+    require => Package[$packagelist],
+    unless => '/usr/bin/locate xdebug | grep xdebug',
   }
 
   exec {'/usr/bin/pecl install xhprof-0.9.2':
