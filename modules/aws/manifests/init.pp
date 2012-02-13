@@ -8,6 +8,7 @@ class aws {
   exec { 'aws-install-key':
     require => Exec['aws-add-sources'],
     command => '/usr/bin/apt-key adv --keyserver keyserver.ubuntu.com --recv-keys BE09C571',
+    unless => "/usr/bin/apt-key list | grep BE09C571",
   }
 
   exec { 'aws-update-sources':
@@ -23,6 +24,12 @@ class aws {
   exec { 'aws-setup-ec2-consistent-snapshot':
     require => Package['ec2-consistent-snapshot'],
     command => '/usr/bin/sudo PERL_MM_USE_DEFAULT=1 cpan Net::Amazon::EC2',
+    unless => '/usr/bin/locate ec2-consistent-snapshot | grep ec2-consistent-snapshot',
+  }
+
+  exec { 'aws-setup-cron':
+      #command => '/bin/echo "12 01 * * * /home/ubuntu/serverbackup.sh" >> /etc/apt/sources.list',
+      unless => '/usr/bin/crontab -l | grep /home/ubuntu/serverbackup.sh',
   }
 
   package { 'libdatetime-perl':
