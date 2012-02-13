@@ -1,7 +1,5 @@
-Print error messages on dev server
 Fix up groups, sort out administration and staff, make sure puppet group gets added.
-Increase upload file size for php
-Add apt-get upgrade step
+
 
 Multi-core solr if required
 http://drupal.org/node/967628
@@ -13,14 +11,12 @@ Only install xdebug once
 
 Set up port forwarding so we can view the solr admin screen
 
+
+
+Build xhprof from git
+
 set up cron for dev servers?
 
- PECL uploadprogress
+aws server backup should auto add cron line
+12 01 * * * /home/ubuntu/serverbackup.sh
 
-apc.shm_size
-
-Check if these notices are adding multiple items
-notice: //baseapps/Exec[/usr/sbin/locale-gen en_US en_US.UTF-8]/returns: executed successfully
-notice: //aws/Exec[aws-install-key]/returns: executed successfully
-notice: //aws/Exec[aws-update-sources]/returns: executed successfully
-notice: //aws/Exec[aws-setup-ec2-consistent-snapshot]/returns: executed successfully
