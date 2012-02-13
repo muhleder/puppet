@@ -70,8 +70,8 @@ class apache2 {
     source => "puppet:///modules/apache2/etc/apache2/apache2.conf",
   }
 
-  file { "/etc/php5/apache2/conf.d/custom.conf":
-    source => "puppet:///modules/apache2/etc/php5/apache2/conf.d/custom.conf",
+  file { "/etc/php5/apache2/conf.d/custom.ini":
+    source => "puppet:///modules/apache2/etc/php5/apache2/conf.d/custom.ini",
   }
 
   file { "$apache_conf_dir/ports.conf":
