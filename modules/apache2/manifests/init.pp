@@ -45,8 +45,6 @@ class apache2 {
   }
 
   file { "/var/www/docroot":
-    owner => "$user",
-    group => $group,
     mode => 774,
     replace => false,
     recurse => false,
