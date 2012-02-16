@@ -1,5 +1,4 @@
-Fix up groups, sort out administration and staff, make sure puppet group gets added.
-
+Extensions folder for xdebug needs to be fixed.
 
 Multi-core solr if required
 http://drupal.org/node/967628
