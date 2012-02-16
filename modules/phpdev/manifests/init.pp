@@ -1,5 +1,6 @@
 
 class phpdev {
+  require apache2, baseapps
 
   $packagelist = ['php5-dev', 'php-pear', 'graphviz']
 
