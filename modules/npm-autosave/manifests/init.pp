@@ -6,7 +6,7 @@ class npm-autosave {
     unless => '/usr/bin/npm -g list | grep autosave',
   }
 
-  exec {'/usr/bin/autosave --config /etc/npm-autosave/routes.js':
+  exec {'/usr/bin/autosave --config /etc/npm-autosave/routes.js --address 33.33.33.10':
     require => [
       Exec['install-autosave'],
       File['/etc/npm-autosave/routes.js']
