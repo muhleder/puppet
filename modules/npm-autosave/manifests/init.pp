@@ -2,7 +2,7 @@ class npm-autosave {
   require chris::lea::nodejs
 
   exec {'install-autosave':
-    command => '/usr/bin/npm -g install autosave',
+    command => '/usr/bin/npm -g install git://github.com/NV/chrome-devtools-autosave-server.git',
     unless => '/usr/bin/npm -g list | grep autosave',
   }
 
