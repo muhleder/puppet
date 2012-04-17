@@ -7,5 +7,5 @@ node default {
   include mysql
   include drupalapps
   include phpdev
-  include npm-autosave
+  #include npm-autosave
 }
