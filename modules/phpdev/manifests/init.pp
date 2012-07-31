@@ -1,4 +1,3 @@
-
 class phpdev {
   require apache2, baseapps
 
@@ -29,6 +28,11 @@ class phpdev {
 
   file {'/etc/apache2/sites-enabled/xhprof':
     source => 'puppet:///modules/phpdev/etc/apache2/sites-enabled/xhprof',
+  }
+
+
+  file {'/etc/php5/apache2/conf.d/xhprof.ini':
+    source => 'puppet:///modules/phpdev/etc/php5/apache2/conf.d/xhprof.ini',
   }
 
   file {'/etc/php5/apache2/conf.d/xdebug.ini':
