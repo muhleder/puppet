@@ -1,7 +1,7 @@
 class drush {
 
   file { "/usr/share/drush":
-    owner => "ubuntu",
+    owner => "vagrant",
     group => "staff",
     mode => 754,
     replace => true,

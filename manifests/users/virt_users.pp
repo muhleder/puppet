@@ -1,5 +1,5 @@
 class virt_users {
-  @user { "ubuntu":
+  @user { "vagrant":
     ensure => "present",
     comment => "Ubuntu User",
     home => "/home/ubuntu",

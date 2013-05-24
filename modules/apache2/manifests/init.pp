@@ -2,7 +2,7 @@ class apache2 {
 
   $apache2_mods = "/etc/apache2/mods"
   
-  $packagelist = ["apache2", "php5", "php-apc", "php5-gd", 'php5-mysql', 'php5-cli', 'php5-curl']
+  $packagelist = ["apache2", "php5", "php-apc", "php5-gd", 'php5-mysql', 'php5-cli', 'php5-curl', 'libapache2-mod-php5']
   
   $modsenable = ["alias", "auth_basic", "authz_host", "deflate", "dir", "expires",	"headers", "mime", "php5", "rewrite"]
 	$modsdisable = ["authz_default", "cgid", "cgi", "negotiation",	"reqtimeout", "setenvif", "status"]
@@ -21,9 +21,9 @@ class apache2 {
 
   $apache_conf_dir = "/etc/apache2"
   $php_conf_dir = "/etc/php5"
-  $group = "ubuntu"
+  $group = "www-data"
   $webuser = "www-data"
-  $user = "ubuntu"
+  $user = "www-data"
 
 
   file { $apache_conf_dir:
